@@ -1,6 +1,12 @@
+if(WIN32)
+    set(SOCKET_IMPL, socket_win.cpp)
+else()
+    set(SOCKET_IMPL, socket_posix.cpp)
+endif()
+
 add_library(transport STATIC
-    socket.cpp
     frame.cpp
+    ${SOCKET_IMPL}
 )
 
 target_include_directories(transport PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
