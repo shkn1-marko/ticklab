@@ -58,3 +58,21 @@ TEST(SocketTest, BindFailsWhenPortAlreadyInUse) {
 
     EXPECT_EQ(second->bind(*port), SocketResult::BindFailed);
 }
+
+TEST(SocketTest, LocalPortIsAssignedByOsAfterBindZero) {
+    auto sock = UdpSocket::create();
+    ASSERT_TRUE(sock.has_value());
+    ASSERT_EQ(sock->bind(0), SocketResult::Success);
+
+    auto port = sock->local_port();
+
+    ASSERT_TRUE(port.has_value());
+    EXPECT_NE(*port, 0);
+}
+
+TEST(SocketTest, LocalPortIsEmptyBeforeBind) {
+    auto sock = UdpSocket::create();
+    ASSERT_TRUE(sock.has_value());
+
+    EXPECT_FALSE(sock->local_port().has_value());
+}
