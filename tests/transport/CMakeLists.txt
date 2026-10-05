@@ -9,5 +9,9 @@ FetchContent_MakeAvailable(googletest)
 add_executable(frame_test frame_test.cpp)
 target_link_libraries(frame_test PRIVATE transport GTest::gtest_main)
 
+add_executable(socket_test socket_test.cpp)
+target_link_libraries(socket_test PRIVATE transport GTest::gtest_main)
+
 include(GoogleTest)
 gtest_discover_tests(frame_test)
+gtest_discover_tests(socket_test PROPERTIES TIMEOUT 10)
