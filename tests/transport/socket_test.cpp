@@ -1,6 +1,7 @@
 #include "socket.hpp"
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <string>
 #include <vector>
 
@@ -15,9 +16,11 @@ TEST(SocketTest, ReceiveReturnsImmediatelyWhenNothingIsWaiting) {
     std::string from_address;
     uint16_t from_port = 0;
 
-    // A blocking socket would hand here; CTest timeout = 10 seconds
-    // turns that into failure.
+    auto start = std::chrono::steady_clock::now();
     EXPECT_FALSE(sock->receive(out, from_address, from_port));
+    auto elapsed = std::chrono::steady_clock::now() - start;
+
+    EXPECT_LT(elapsed, std::chrono::milliseconds(50));
 }
 
 TEST(SocketTest, SendToRejectsHostname) {
