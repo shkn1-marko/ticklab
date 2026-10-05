@@ -137,7 +137,7 @@ SocketResult UdpSocket::send_to(const std::string& address, uint16_t port, const
 
 bool UdpSocket::receive(std::vector<uint8_t>& out, std::string& from_address, uint16_t& from_port)
 {
-    std::vector<uint8_t> buffer(kMaxDatagramSize);
+    std::vector<uint8_t> buffer(kMaxDatagramSize + 1);
 
     sockaddr_in sender_addr{};
     int sender_len = sizeof(sender_addr);
@@ -146,6 +146,7 @@ bool UdpSocket::receive(std::vector<uint8_t>& out, std::string& from_address, ui
                               reinterpret_cast<sockaddr*>(&sender_addr), &sender_len);
 
     if (received <= 0) { return false; }
+    if (static_cast<size_t>(received) > kMaxDatagramSize) { return false; }
 
     buffer.resize(static_cast<size_t>(received));
     out = std::move(buffer);

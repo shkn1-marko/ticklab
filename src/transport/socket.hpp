@@ -8,6 +8,7 @@
 namespace ticklab::transport
 {
 
+// datagrams larger than 2048 bytes are dropped
 constexpr std::size_t kMaxDatagramSize = 2048;
 
 enum class SocketResult
