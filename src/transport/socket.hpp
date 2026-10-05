@@ -30,8 +30,9 @@ public:
     UdpSocket& operator=(UdpSocket&& other) noexcept;
 
     SocketResult bind(uint16_t port);
-    SocketResult send_to(const std::string& address, uint16_t port, const std::vector<uint8_t>& data);
+    std::optional<uint16_t> local_port() const;
 
+    SocketResult send_to(const std::string& address, uint16_t port, const std::vector<uint8_t>& data);
     bool receive(std::vector<uint8_t>& out, std::string& from_address, uint16_t& from_port);
 
 private:
