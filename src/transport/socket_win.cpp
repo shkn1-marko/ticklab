@@ -105,7 +105,7 @@ std::optional<uint16_t> UdpSocket::local_port() const
     sockaddr_in addr{};
     int len = sizeof(addr);
 
-    if (getsockname(impl_->sock, reinterpret_cast<sockaddr*>(&addr)) != 0) { return std::nullopt; }
+    if (getsockname(impl_->sock, reinterpret_cast<sockaddr*>(&addr), &len) != 0) { return std::nullopt; }
 
     uint16_t port = ntohs(addr.sin_port);
     if (port == 0) { return std::nullopt; }
