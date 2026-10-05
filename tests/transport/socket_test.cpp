@@ -17,6 +17,8 @@ TEST(SocketTest, ReceiveReturnsImmediatelyWhenNothingIsWaiting) {
     uint16_t from_port = 0;
 
     auto start = std::chrono::steady_clock::now();
+    // A blocking socket would hang here; CTest timeout = 10 seconds
+    // turns that into failure.
     EXPECT_FALSE(sock->receive(out, from_address, from_port));
     auto elapsed = std::chrono::steady_clock::now() - start;
 
