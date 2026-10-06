@@ -15,7 +15,11 @@ target_link_libraries(socket_test PRIVATE transport GTest::gtest_main)
 add_executable(sequence_tracker_test sequence_tracker_test.cpp)
 target_link_libraries(sequence_tracker_test PRIVATE transport GTest::gtest_main)
 
+add_executable(transport_integration_test transport_integration_test.cpp)
+target_link_libraries(transport_integration_test PRIVATE transport GTest::gtest_main)
+
 include(GoogleTest)
 gtest_discover_tests(frame_test)
 gtest_discover_tests(socket_test PROPERTIES TIMEOUT 10)
 gtest_discover_tests(sequence_tracker_test)
+gtest_discover_tests(transport_integration_test PROPERTIES TIMEOUT 10)
