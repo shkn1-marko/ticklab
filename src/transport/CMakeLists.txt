@@ -6,6 +6,7 @@ endif()
 
 add_library(transport STATIC
     frame.cpp
+    sequence_tracker.cpp
     ${SOCKET_IMPL}
 )
 
