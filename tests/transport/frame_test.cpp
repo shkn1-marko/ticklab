@@ -117,3 +117,19 @@ TEST(FrameTest, ParseFrameRejectsTrailingBytesBeyondDeclaredLength) {
 
     EXPECT_FALSE(ok);
 }
+
+TEST(FrameTest, ParseFrameRejectsUnknownFrameType) {
+    std::vector<uint8_t> payload{ 'a', 'b', 'c' };
+    FrameHeader header{ 1, 1, FrameType::Data, static_cast<uint16_t>(payload.size()) };
+
+    std::vector<uint8_t> raw = build_frame(header, payload);
+
+    // byte 8 is the FrameType byte
+    raw[8] = 0xFF;
+
+    FrameHeader out_header{};
+    std::vector<uint8_t> out_payload;
+    bool ok = parse_frame(raw, out_header, out_payload);
+
+    EXPECT_FALSE(ok);
+}

@@ -11,6 +11,22 @@
 namespace ticklab::transport
 {
 
+namespace
+{
+
+bool is_known_frame_type(FrameType type)
+{
+    switch (type)
+    {
+    case FrameType::Data:
+        return true;
+    }
+
+    return false;
+}
+
+}
+
 void serialize_header(const FrameHeader& header, std::array<uint8_t, kHeaderSize>& out)
 {
     uint32_t sequence_be = htonl(header.sequence);
@@ -82,6 +98,8 @@ bool parse_frame(const std::vector<uint8_t>& raw, FrameHeader& out_header, std::
     std::array<uint8_t, kHeaderSize> header_bytes{};
     std::copy(raw.begin(), raw.begin() + kHeaderSize, header_bytes.begin());
     out_header = deserialize_header(header_bytes);
+
+    if (!is_known_frame_type(out_header.type)) { return false; }
 
     std::size_t actual_payload_size = raw.size() - kHeaderSize;
     if (actual_payload_size != out_header.payload_length) { return false; }
