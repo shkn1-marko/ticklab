@@ -33,6 +33,8 @@ void print_usage()
     std::cerr << "usage: sender <dest_ip> <port> <count> <interval_ms> [skip_sequence ...]\n";
 }
 
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 5)
@@ -108,6 +110,8 @@ int main(int argc, char** argv)
             std::this_thread::sleep_for(std::chrono::milliseconds(interval_ms));
         }
     }
-}
 
+    std::cout << "done: sent " << sent << " of " << count << " sequence numbers, "
+              << (count - sent) << " skipped on purpose\n";
+    return 0;
 }
