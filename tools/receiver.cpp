@@ -83,7 +83,7 @@ int main(int argc, char** argv)
 
     if (sock->bind(port) != SocketResult::Success)
     {
-        std::cerr << "receiver: failed to bind UPD port " << port << "\n";
+        std::cerr << "receiver: failed to bind UDP port " << port << "\n";
         return 1;
     }
 
