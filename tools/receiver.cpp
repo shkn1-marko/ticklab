@@ -150,7 +150,7 @@ int main(int argc, char** argv)
             counters.missing += observation.missing_count;
 
             const uint32_t last_missing = observation.first_missing + observation.missing_count - 1;
-            std::cout << "GAP: sequece " << header.sequence << " arrived, missing "
+            std::cout << "GAP: sequence " << header.sequence << " arrived, missing "
                       << observation.first_missing << ".." << last_missing
                       << " (" << observation.missing_count << " frames)\n";
             break;
