@@ -21,6 +21,8 @@ Every term has exactly one meaning, and each one belongs to one layer.
 
 ## The plan
 
+Seven stages, each one a layer with a single job, built in the order below.
+
 | # | Stage | Goal |
 |:---:|---|---|
 | **1** | **Transport & framing** | Send and receive datagrams on every platform, wrapped in a fixed binary header (sequence number, tick, type, payload length). Detect gaps, reordering and duplicates. |
