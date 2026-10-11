@@ -12,6 +12,11 @@ constexpr std::size_t kHeaderSize = 11;
 enum class FrameType : uint8_t
 {
     Data = 0,
+    Hello = 1,
+    Welcome = 2,
+    Reject = 3,
+    Heartbeat = 4,
+    Goodbye = 5,
 };
 
 struct FrameHeader

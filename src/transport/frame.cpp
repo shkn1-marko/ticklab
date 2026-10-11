@@ -20,6 +20,16 @@ bool is_known_frame_type(FrameType type)
     {
     case FrameType::Data:
         return true;
+    case FrameType::Hello:
+        return true;
+    case FrameType::Welcome:
+        return true;
+    case FrameType::Reject:
+        return true;
+    case FrameType::Heartbeat:
+        return true;
+    case FrameType::Goodbye:
+        return true;
     }
 
     return false;
