@@ -21,11 +21,12 @@ Every term has exactly one meaning, and each one belongs to one layer.
 
 ## The plan
 
-Seven stages, each one a layer with a single job, built in the order below.
+Seven stages, each one a layer with a single job, built in the order below. A security layer belongs between stages 1 and 2 but is deliberately skipped; see [Approach](#approach).
 
 | # | Stage | Goal |
 |:---:|---|---|
 | **1** | **Transport & framing** | Send and receive datagrams on every platform, wrapped in a fixed binary header (sequence number, tick, type, payload length). Detect gaps, reordering and duplicates. |
+| — | *Security (skipped)* | *Encrypt and authenticate every frame, so identity is proven rather than claimed. Not built; see [Approach](#approach).* |
 | **2** | **Connection & identity** | Client–server handshake, a stable client ID with a reconnect token, and liveness through heartbeats and timeouts. |
 | **3** | **Network conditioner** | Inject loss, jitter, reordering and duplication on purpose. A test instrument used by every stage after it. |
 | **4** | **Reliability** | Acks, round-trip-time measurement, retransmission of messages, and delivery channels (reliable-ordered, unreliable latest-wins, redundant). |
@@ -47,9 +48,5 @@ Each stage builds only on the stages before it.
 - **C++20, no networking libraries.** Sockets, framing, sequencing, reliability and sync are all written by hand, because building them is the point of the project.
 - **One module per stage** under `src/`, each exposing a small interface. For example, `transport` hides the POSIX and Winsock socket code behind a single `UdpSocket` class.
 - **Tested in isolation** with GoogleTest, fetched through CMake. It's the one deliberate exception to the no-libraries rule, since testing tools aren't part of what's being studied.
+- **Security is deliberately skipped.** In a real system, a security layer sits between transport and connection: every frame is encrypted and signed before it reaches the socket and verified right after it leaves, and a separate auth backend issues signed connect tokens that the server can verify. Without it, anyone on the network path can read frames, forge them with a faked source address (a fake `Goodbye` could disconnect someone), or replay old ones, and the reconnect token only guards against confusion, not against an attacker. It is left out because it is unrelated to timing, identity, reliability and sync, it needs real cryptography (a library such as libsodium, since hand-written crypto is unsafe) plus key management, and it can be added later without redesigning the layers above. Two habits keep that door open: all incoming frames are parsed in one place, and nothing above the connection layer treats a source address as proof of identity.
 - **Real machines, not threads.** It's built to run across a Windows PC, a Linux laptop and a remote VPS, so timing, latency and packet loss come from a real network.
-
-## Known limitations
-
-- **Loss at the end of a stream is invisible.** The sequence tracker only notices a gap when a later frame arrives. Stage 2's heartbeats keep frames flowing, which makes trailing loss visible.
-- **The VPS leg is untested.** Stage 1 was verified between the PC and the laptop. Stage 2's system test runs the server on the VPS.
