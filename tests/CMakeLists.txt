@@ -9,3 +9,4 @@ FetchContent_MakeAvailable(googletest)
 include(GoogleTest)
 
 add_subdirectory(transport)
+add_subdirectory(connection)
