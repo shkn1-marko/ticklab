@@ -77,3 +77,31 @@ TEST(MessagesTest, WelcomeSerializeProducesExpectedWireBytes) {
     ASSERT_EQ(bytes.size(), kWelcomeSize);
     EXPECT_EQ(bytes, expected);
 }
+
+TEST(MessagesTest, RejectRoundTripPreservesEachReason) {
+    const RejectReason reasons[] = {
+        RejectReason::VersionMismatch,
+        RejectReason::ServerFull,
+    };
+
+    for (RejectReason reason : reasons) {
+        std::vector<uint8_t> bytes = serialize_reject(Reject{ reason });
+
+        Reject result{};
+        bool ok = parse_reject(bytes, result);
+
+        ASSERT_TRUE(ok) << "reason " << static_cast<int>(reason);
+        EXPECT_EQ(result.reason, reason) << "reason " << static_cast<int>(reason);
+    }
+}
+
+TEST(MessagesTest, ParseRejectRejectsUnknownReason) {
+    const std::vector<std::vector<uint8_t>> cases{ { 0x00 }, { 0xFF } };
+
+    for (const auto& bytes : cases) {
+        Reject result{};
+        bool ok = parse_reject(bytes, result);
+
+        EXPECT_FALSE(ok) << "byte " << static_cast<int>(bytes[0]);
+    }
+}
