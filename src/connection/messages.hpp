@@ -14,6 +14,9 @@ constexpr std::size_t kHelloSize = 18;
 constexpr std::size_t kWelcomeSize = 12;
 constexpr std::size_t kRejectSize = 1;
 
+static_assert(kWelcomeSize <= kHelloSize, "(amplification)");
+static_assert(kRejectSize  <= kHelloSize, "(amplification)");
+
 struct Hello
 {
     uint32_t magic;
