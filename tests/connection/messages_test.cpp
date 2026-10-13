@@ -50,3 +50,30 @@ TEST(MessagesTest, ParseHelloAcceptsWrongMagicAndVersion) {
     EXPECT_EQ(result.magic, 0xABCDABCD);
     EXPECT_EQ(result.version, 999);
 }
+
+TEST(MessagesTest, WelcomeRoundTripPreservesAllFields) {
+    Welcome welcome{ 42, 0x1122334455667788 };
+
+    std::vector<uint8_t> bytes = serialize_welcome(welcome);
+
+    Welcome result{};
+    bool ok = parse_welcome(bytes, result);
+
+    ASSERT_TRUE(ok);
+    EXPECT_EQ(result.client_id, welcome.client_id);
+    EXPECT_EQ(result.token, welcome.token);
+}
+
+TEST(MessagesTest, WelcomeSerializeProducesExpectedWireBytes) {
+    Welcome welcome{ 0x01020304, 0x05060708090A0B0C };
+
+    std::vector<uint8_t> bytes = serialize_welcome(welcome);
+
+    const std::vector<uint8_t> expected{
+        0x01, 0x02, 0x03, 0x04,                         // client_id, big-endian
+        0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C  // token, big-endian
+    };
+
+    ASSERT_EQ(bytes.size(), kWelcomeSize);
+    EXPECT_EQ(bytes, expected);
+}
