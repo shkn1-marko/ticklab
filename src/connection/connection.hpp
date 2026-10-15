@@ -12,7 +12,7 @@ namespace ticklab::connection
 using Clock = std::chrono::steady_clock;
 using TimePoint = Clock::time_point;
 
-constexpr auto kHeartbeatInterval = std::chrono::microseconds(250);
+constexpr auto kHeartbeatInterval = std::chrono::milliseconds(250);
 constexpr auto kConnectionTimeout = std::chrono::seconds(2);
 
 using ClientId = uint32_t;
