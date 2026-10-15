@@ -28,10 +28,11 @@ struct Endpoint
 
 class Connection
 {
+public:
     Connection(ClientId client_id, uint64_t token, Endpoint endpoint, TimePoint now);
 
-    ClientId client_id() { return client_id_; }
-    uint64_t token() { return token_; }
+    ClientId client_id() const { return client_id_; }
+    uint64_t token() const { return token_; }
     const Endpoint& endpoint() const { return endpoint_; }
 
     // Incoming: any valid frame from the peer is proof of life
@@ -40,7 +41,7 @@ class Connection
     // Outgoing: returns the sequence number for the next frame and records the sent time
     uint32_t next_sequence(TimePoint now);
 
-    // Liveness. Both use ">=", so the boundry instant counts
+    // Liveness. Both use ">=", so the boundary instant counts
     bool should_send_heartbeat(TimePoint now) const; // nothing sent for kHeartbeatInterval
     bool is_timed_out(TimePoint now) const; // nothing heard for kConnectionTimeout
 
