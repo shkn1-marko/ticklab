@@ -45,7 +45,11 @@ bool read_welcome(const OutgoingFrame& frame, Welcome& out, uint32_t& sequence) 
 
     sequence = header.sequence;
     return parse_welcome(payload, out);
-} bool read_reject(const OutgoingFrame& frame, Reject& out, uint32_t sequence) { FrameHeader header{}; std::vector<uint8_t> payload;
+}
+
+bool read_reject(const OutgoingFrame& frame, Reject& out, uint32_t& sequence) {
+    FrameHeader header{};
+    std::vector<uint8_t> payload;
     if (!read_frame(frame, FrameType::Reject, header, payload)) { return false; }
 
     sequence = header.sequence;
