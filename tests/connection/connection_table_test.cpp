@@ -180,3 +180,205 @@ TEST(ConnectionTableTest, FifthClientIsRejectedWhenFull) {
     EXPECT_EQ(table.size(), kMaxClients);
     EXPECT_EQ(table.find(fifth), nullptr);
 }
+
+TEST(ConnectionTableTest, MatchingIdAndTokenFromNewEndpointReconnects) {
+    ConnectionTable table{ kSeed };
+    const Endpoint old_endpoint = client_endpoint(40000);
+    const Endpoint new_endpoint = client_endpoint(40001);
+
+    Result first = table.on_datagram(old_endpoint, make_hello_frame(), t0);
+    ASSERT_EQ(first.frames.size(), 1u);
+
+    Welcome original{};
+    uint32_t sequence = 0;
+    ASSERT_TRUE(read_welcome(first.frames[0], original, sequence));
+
+    Result result = table.on_datagram(new_endpoint, make_hello_frame(original.client_id, original.token), t0 + 1s);
+
+    ASSERT_EQ(result.frames.size(), 1u);
+    EXPECT_EQ(result.frames[0].to, new_endpoint);
+
+    Welcome welcome{};
+    ASSERT_TRUE(read_welcome(result.frames[0], welcome, sequence));
+    EXPECT_EQ(welcome.client_id, original.client_id);
+    EXPECT_EQ(welcome.token, original.token);
+
+    ASSERT_EQ(result.events.size(), 1u);
+    EXPECT_EQ(result.events[0].type, EventType::Reconnected);
+    EXPECT_EQ(result.events[0].client_id, original.client_id);
+    EXPECT_EQ(result.events[0].endpoint, new_endpoint);
+
+    EXPECT_EQ(table.size(), 1u);
+    EXPECT_EQ(table.find(old_endpoint), nullptr);
+
+    const Connection* connection = table.find(new_endpoint);
+    ASSERT_NE(connection, nullptr);
+    EXPECT_EQ(connection->client_id(), original.client_id);
+}
+
+TEST(ConnectionTableTest, ReconnectStartsFreshSequences) {
+    ConnectionTable table{ kSeed };
+    const Endpoint old_endpoint = client_endpoint(40000);
+    const Endpoint new_endpoint = client_endpoint(40001);
+
+    Result first = table.on_datagram(old_endpoint, make_hello_frame(), t0);
+    ASSERT_EQ(first.frames.size(), 1u);
+
+    Welcome original{};
+    uint32_t sequence = 0;
+    ASSERT_TRUE(read_welcome(first.frames[0], original, sequence));
+
+    ASSERT_EQ(table.update(t0 + 250ms).frames.size(), 1u);
+    ASSERT_EQ(table.update(t0 + 500ms).frames.size(), 1u);
+
+    Result result = table.on_datagram(new_endpoint, make_hello_frame(original.client_id, original.token), t0 + 600ms);
+    ASSERT_EQ(result.frames.size(), 1u);
+
+    Welcome welcome{};
+    sequence = 99;
+    ASSERT_TRUE(read_welcome(result.frames[0], welcome, sequence));
+
+    EXPECT_EQ(sequence, 0u);
+}
+
+TEST(ConnectionTableTest, ExpiredIdBecomesNewClient) {
+    ConnectionTable table{ kSeed };
+    const Endpoint old_endpoint = client_endpoint(40000);
+    const Endpoint new_endpoint = client_endpoint(40001);
+
+    Result first = table.on_datagram(old_endpoint, make_hello_frame(), t0);
+    ASSERT_EQ(first.frames.size(), 1u);
+
+    Welcome original{};
+    uint32_t sequence = 0;
+    ASSERT_TRUE(read_welcome(first.frames[0], original, sequence));
+
+    const FrameHeader goodbye{ 1, 0, FrameType::Goodbye, 0 };
+    table.on_datagram(old_endpoint, ticklab::transport::build_frame(goodbye, {}), t0 + 1s);
+    ASSERT_EQ(table.size(), 0u);
+
+    Result result = table.on_datagram(new_endpoint, make_hello_frame(original.client_id, original.token), t0 + 2s);
+
+    ASSERT_EQ(result.frames.size(), 1u);
+
+    Welcome welcome{};
+    ASSERT_TRUE(read_welcome(result.frames[0], welcome, sequence));
+    EXPECT_NE(welcome.client_id, original.client_id);
+    EXPECT_NE(welcome.token, original.token);
+
+    ASSERT_EQ(result.events.size(), 1u);
+    EXPECT_EQ(result.events[0].type, EventType::Connected);
+}
+
+TEST(ConnectionTableTest, UpdateSendsHeartbeatWhenDue) {
+    ConnectionTable table{ kSeed };
+    const Endpoint from = client_endpoint(40000);
+
+    table.on_datagram(from, make_hello_frame(), t0);
+
+    EXPECT_TRUE(table.update(t0 + 249ms).frames.empty());
+
+    Result result = table.update(t0 + 250ms);
+
+    ASSERT_EQ(result.frames.size(), 1u);
+    EXPECT_EQ(result.frames[0].to, from);
+    EXPECT_TRUE(result.events.empty());
+
+    FrameHeader header{};
+    std::vector<uint8_t> payload;
+    ASSERT_TRUE(read_frame(result.frames[0], FrameType::Heartbeat, header, payload));
+    EXPECT_EQ(header.sequence, 1u);
+    EXPECT_TRUE(payload.empty());
+}
+
+TEST(ConnectionTableTest, UpdateRemovesTimedOutConnection) {
+    ConnectionTable table{ kSeed };
+    const Endpoint from = client_endpoint(40000);
+
+    table.on_datagram(from, make_hello_frame(), t0);
+
+    EXPECT_TRUE(table.update(t0 + 1999ms).events.empty());
+    ASSERT_EQ(table.size(), 1u);
+
+    Result result = table.update(t0 + 2s);
+
+    ASSERT_EQ(result.events.size(), 1u);
+    EXPECT_EQ(result.events[0].type, EventType::TimedOut);
+    EXPECT_EQ(result.events[0].client_id, 1u);
+    EXPECT_EQ(result.events[0].endpoint, from);
+
+    EXPECT_TRUE(result.frames.empty());
+
+    EXPECT_EQ(table.size(), 0u);
+    EXPECT_EQ(table.find(from), nullptr);
+}
+
+TEST(ConnectionTableTest, TrafficFromClientPreventsTimeout) {
+    ConnectionTable table{ kSeed };
+    const Endpoint from = client_endpoint(40000);
+
+    table.on_datagram(from, make_hello_frame(), t0);
+
+    const FrameHeader heartbeat{ 1, 0, FrameType::Heartbeat, 0 };
+    table.on_datagram(from, ticklab::transport::build_frame(heartbeat, {}), t0 + 1500ms);
+
+    EXPECT_TRUE(table.update(t0 + 2000ms).events.empty());
+    EXPECT_EQ(table.size(), 1u);
+
+    Result result = table.update(t0 + 3500ms);
+
+    ASSERT_EQ(result.events.size(), 1u);
+    EXPECT_EQ(result.events[0].type, EventType::TimedOut);
+    EXPECT_EQ(table.size(), 0u);
+}
+
+TEST(ConnectionTableTest, GoodbyeRemovesConnection) {
+    ConnectionTable table{ kSeed };
+    const Endpoint from = client_endpoint(40000);
+
+    table.on_datagram(from, make_hello_frame(), t0);
+
+    const FrameHeader goodbye{ 1, 0, FrameType::Goodbye, 0 };
+    Result result = table.on_datagram(from, ticklab::transport::build_frame(goodbye, {}), t0 + 1s);
+
+    EXPECT_TRUE(result.frames.empty());
+
+    ASSERT_EQ(result.events.size(), 1u);
+    EXPECT_EQ(result.events[0].type, EventType::Disconnected);
+    EXPECT_EQ(result.events[0].client_id, 1u);
+    EXPECT_EQ(result.events[0].endpoint, from);
+
+    EXPECT_EQ(table.size(), 0u);
+    EXPECT_EQ(table.find(from), nullptr);
+}
+
+TEST(ConnectionTableTest, CloseAllSendsGoodbyeToEveryone) {
+    ConnectionTable table{ kSeed };
+
+    const Endpoint endpoints[] = { client_endpoint(40001), client_endpoint(40002), client_endpoint(40003) };
+
+    for (const Endpoint& endpoint : endpoints) {
+        table.on_datagram(endpoint, make_hello_frame(), t0);
+    }
+    ASSERT_EQ(table.size(), 3u);
+
+    Result result = table.close_all(t0 + 1s);
+
+    ASSERT_EQ(result.frames.size(), 3u);
+
+    for (const OutgoingFrame& frame : result.frames) {
+        FrameHeader header{};
+        std::vector<uint8_t> payload;
+        EXPECT_TRUE(read_frame(frame, FrameType::Goodbye, header, payload));
+    }
+
+    for (const Endpoint& endpoint : endpoints) {
+        int count = 0;
+        for (const OutgoingFrame& frame : result.frames) {
+            if (frame.to == endpoint) { ++count; }
+        }
+        EXPECT_EQ(count, 1) << "port " << endpoint.port;
+    }
+
+    EXPECT_EQ(table.size(), 0u);
+}
