@@ -104,3 +104,79 @@ TEST(ConnectionTableTest, ClientIdsStartAtOneAndIncrement) {
 
     EXPECT_EQ(table.size(), 3u);
 }
+
+TEST(ConnectionTableTest, RepeatedHelloFromSameEndpointResendsSameWelcome) {
+    ConnectionTable table{ kSeed };
+    const Endpoint from = client_endpoint(40000);
+
+    Result first = table.on_datagram(from, make_hello_frame(), t0);
+    ASSERT_EQ(first.frames.size(), 1u);
+
+    Welcome first_welcome{};
+    uint32_t first_sequence = 0;
+    ASSERT_TRUE(read_welcome(first.frames[0], first_welcome, first_sequence));
+
+    Result second = table.on_datagram(from, make_hello_frame(), t0 + 250ms);
+
+    ASSERT_EQ(second.frames.size(), 1u);
+    EXPECT_EQ(second.frames[0].to, from);
+
+    Welcome second_welcome{};
+    uint32_t second_sequence = 0;
+    ASSERT_TRUE(read_welcome(second.frames[0], second_welcome, second_sequence));
+
+    EXPECT_EQ(second_welcome.client_id, first_welcome.client_id);
+    EXPECT_EQ(second_welcome.token, first_welcome.token);
+    EXPECT_EQ(second_sequence, first_sequence + 1);
+
+    EXPECT_TRUE(second.events.empty());
+    EXPECT_EQ(table.size(), 1u);
+}
+
+TEST(ConnectionTableTest, NonHelloFromUnknownEndpointIsIgnored) {
+    ConnectionTable table{ kSeed };
+    const Endpoint unknown = client_endpoint(40000);
+
+    const FrameType types[] = { FrameType::Data, FrameType::Heartbeat, FrameType::Goodbye };
+
+    for (FrameType type : types) {
+        const FrameHeader header{ 0, 0, type, 0 };
+        const std::vector<uint8_t> frame = ticklab::transport::build_frame(header, {});
+
+        Result result = table.on_datagram(unknown, frame, t0);
+
+        EXPECT_TRUE(result.frames.empty()) << "type " << static_cast<int>(type);
+        EXPECT_TRUE(result.events.empty()) << "type " << static_cast<int>(type);
+    }
+
+    EXPECT_EQ(table.size(), 0u);
+}
+
+TEST(ConnectionTableTest, FifthClientIsRejectedWhenFull) {
+    ConnectionTable table{ kSeed };
+
+    for (uint16_t port = 40001; port <= 40000 + kMaxClients; ++port) {
+        table.on_datagram(client_endpoint(port), make_hello_frame(), t0);
+    }
+    ASSERT_EQ(table.size(), kMaxClients);
+
+    const Endpoint fifth = client_endpoint(40100);
+    Result result = table.on_datagram(fifth, make_hello_frame(), t0);
+
+    ASSERT_EQ(result.frames.size(), 1u);
+    EXPECT_EQ(result.frames[0].to, fifth);
+
+    Reject reject{};
+    uint32_t sequence = 1;
+    ASSERT_TRUE(read_reject(result.frames[0], reject, sequence));
+    EXPECT_EQ(reject.reason, RejectReason::ServerFull);
+    EXPECT_EQ(sequence, 0u);
+
+    ASSERT_EQ(result.events.size(), 1u);
+    EXPECT_EQ(result.events[0].type, EventType::Rejected);
+    EXPECT_EQ(result.events[0].client_id, kNoClientId);
+    EXPECT_EQ(result.events[0].endpoint, fifth);
+
+    EXPECT_EQ(table.size(), kMaxClients);
+    EXPECT_EQ(table.find(fifth), nullptr);
+}
