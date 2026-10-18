@@ -4,5 +4,9 @@ target_link_libraries(messages_test PRIVATE connection GTest::gtest_main)
 add_executable(connection_test connection_test.cpp)
 target_link_libraries(connection_test PRIVATE connection GTest::gtest_main)
 
+add_executable(connection_table_test connection_table_test.cpp)
+target_link_libraries(connection_table_test PRIVATE connection GTest::gtest_main)
+
 gtest_discover_tests(messages_test)
 gtest_discover_tests(connection_test)
+gtest_discover_tests(connection_table_test)
