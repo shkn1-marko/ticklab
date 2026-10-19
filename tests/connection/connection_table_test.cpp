@@ -382,3 +382,39 @@ TEST(ConnectionTableTest, CloseAllSendsGoodbyeToEveryone) {
 
     EXPECT_EQ(table.size(), 0u);
 }
+
+TEST(ConnectionTableTest, WrongTokenBecomesNewClientAndLeavesOriginalUntouched) {
+    ConnectionTable table{ kSeed };
+    const Endpoint original_endpoint = client_endpoint(40000);
+    const Endpoint impostor_endpoint = client_endpoint(40001);
+
+    Result first = table.on_datagram(original_endpoint, make_hello_frame(), t0);
+    ASSERT_EQ(first.frames.size(), 1u);
+
+    Welcome original{};
+    uint32_t sequence = 0;
+    ASSERT_TRUE(read_welcome(first.frames[0], original, sequence));
+
+    // right ID, wrong token, from somewhere else
+    Result result = table.on_datagram(impostor_endpoint, make_hello_frame(original.client_id, original.token + 1), t0 + 1s);
+
+    // the sender is treated as a brand-new client
+    ASSERT_EQ(result.frames.size(), 1u);
+    EXPECT_EQ(result.frames[0].to, impostor_endpoint);
+
+    Welcome welcome{};
+    ASSERT_TRUE(read_welcome(result.frames[0], welcome, sequence));
+    EXPECT_NE(welcome.client_id, original.client_id);
+    EXPECT_NE(welcome.token, original.token);
+
+    ASSERT_EQ(result.events.size(), 1u);
+    EXPECT_EQ(result.events[0].type, EventType::Connected);
+
+    // the original connection is still there, at its own endpoint, with its own identity
+    EXPECT_EQ(table.size(), 2u);
+
+    const Connection* connection = table.find(original_endpoint);
+    ASSERT_NE(connection, nullptr);
+    EXPECT_EQ(connection->client_id(), original.client_id);
+    EXPECT_EQ(connection->token(), original.token);
+}
