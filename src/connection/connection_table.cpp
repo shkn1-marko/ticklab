@@ -65,7 +65,9 @@ Result ConnectionTable::on_datagram(const Endpoint& from, const std::vector<uint
 
     Connection& connection = it->second;
 
-    connection.on_frame_received(header.sequence, now);
+    // A repeated Hello is numbered outside the connection (always 0),
+    // so it must not reach the tracker
+    if (header.type != FrameType::Hello) { connection.on_frame_received(header.sequence, now); }
 
     switch (header.type)
     {
