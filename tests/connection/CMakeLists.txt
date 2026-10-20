@@ -10,7 +10,11 @@ target_link_libraries(connection_table_test PRIVATE connection GTest::gtest_main
 add_executable(client_connector_test client_connector_test.cpp)
 target_link_libraries(client_connector_test PRIVATE connection GTest::gtest_main)
 
+add_executable(connection_integration_test connection_integration_test.cpp)
+target_link_libraries(connection_integration_test PRIVATE connection GTest::gtest_main)
+
 gtest_discover_tests(messages_test)
 gtest_discover_tests(connection_test)
 gtest_discover_tests(connection_table_test)
 gtest_discover_tests(client_connector_test)
+gtest_discover_tests(connection_integration_test)
