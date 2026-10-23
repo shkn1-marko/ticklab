@@ -43,7 +43,7 @@ Result deliver_to_server(ConnectionTable& table, const Endpoint& client, const C
 
 ClientResult deliver_to_client(ClientConnector& connector, const Endpoint& client, const Result& sent, TimePoint now) {
     ClientResult replies;
-    for (const OutgoingFrame frame : sent.frames) {
+    for (const OutgoingFrame& frame : sent.frames) {
         if (frame.to == client) {
             append(replies, connector.on_datagram(kServer, frame.bytes, now));
         }
