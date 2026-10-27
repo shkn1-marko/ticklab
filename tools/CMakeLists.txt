@@ -9,3 +9,6 @@ target_link_libraries(server PRIVATE connection)
 
 add_executable(client client.cpp)
 target_link_libraries(client PRIVATE connection)
+
+add_executable(proxy proxy.cpp)
+target_link_libraries(proxy PRIVATE conditioner transport)
