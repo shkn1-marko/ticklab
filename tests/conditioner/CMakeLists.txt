@@ -1,0 +1,8 @@
+add_executable(conditioner_test conditioner_test.cpp)
+target_link_libraries(conditioner_test PRIVATE conditioner transport GTest::gtest_main)
+
+add_executable(conditioner_integration_test conditioner_integration_test.cpp)
+target_link_libraries(conditioner_integration_test PRIVATE conditioner connection GTest::gtest_main)
+
+gtest_discover_tests(conditioner_test)
+gtest_discover_tests(conditioner_integration_test)

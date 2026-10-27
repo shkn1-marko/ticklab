@@ -10,3 +10,4 @@ include(GoogleTest)
 
 add_subdirectory(transport)
 add_subdirectory(connection)
+add_subdirectory(conditioner)
